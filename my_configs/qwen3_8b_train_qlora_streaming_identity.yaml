@@ -1,0 +1,48 @@
+### model
+model_name_or_path: /mnt/data/models/Qwen3-8B
+trust_remote_code: true
+
+### method
+stage: sft
+do_train: true
+finetuning_type: lora
+lora_rank: 8
+lora_alpha: 16
+lora_dropout: 0.05
+lora_target: all
+
+### quantization
+quantization_bit: 4
+quantization_method: bitsandbytes
+
+### dataset
+dataset: streaming_identity
+template: qwen3_nothink
+cutoff_len: 1024
+streaming: true
+buffer_size: 1
+# max_samples removed: incompatible with streaming
+preprocessing_batch_size: 1
+preprocessing_num_workers: 4
+dataloader_num_workers: 0
+
+### output
+output_dir: my_saves/qwen3_8b_qlora_streaming_identity
+logging_steps: 5
+save_steps: 50
+plot_loss: true
+overwrite_output_dir: true
+save_only_model: false
+report_to: none
+
+### train
+per_device_train_batch_size: 1
+gradient_accumulation_steps: 8
+learning_rate: 1.0e-4
+num_train_epochs: 3.0
+max_steps: 36
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+bf16: true
+ddp_timeout: 180000000
+resume_from_checkpoint: null

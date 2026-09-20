@@ -181,3 +181,8 @@ wandb/
 swanlog/
 generated_predictions.jsonl
 predictions_score.json
+
+# dingshang
+my_outputs/
+my_saves/
+my_plans/
