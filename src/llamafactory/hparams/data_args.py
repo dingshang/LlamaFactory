@@ -63,6 +63,10 @@ class DataArguments:
         default=16384,
         metadata={"help": "Size of the buffer to randomly sample examples from in dataset streaming."},
     )
+    drop_cache: bool = field(
+        default=False,
+        metadata={"help": "Drop page cache after each line read in `dynamic_file` streaming mode."},
+    )
     mix_strategy: Literal["concat", "interleave_under", "interleave_over", "interleave_once"] = field(
         default="concat",
         metadata={

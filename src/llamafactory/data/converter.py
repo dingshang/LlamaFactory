@@ -51,7 +51,7 @@ class DatasetConverter:
         else:
             medias = medias[:]
 
-        if self.dataset_attr.load_from in ["script", "file"]:
+        if self.dataset_attr.load_from in ["script", "file", "dynamic_file"]:
             if isinstance(medias[0], str):
                 for i in range(len(medias)):
                     media_path = os.path.join(self.data_args.media_dir, medias[i])

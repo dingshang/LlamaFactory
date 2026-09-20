@@ -12,11 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import os
-from typing import TYPE_CHECKING, Literal, Optional, Union
+import time
+from typing import TYPE_CHECKING, Iterator, Literal, Optional, Union
 
 import numpy as np
-from datasets import Dataset, DatasetDict, load_dataset, load_from_disk
+from datasets import Dataset, DatasetDict, IterableDataset, load_dataset, load_from_disk
 
 from ..extras import logging
 from ..extras.constants import FILEEXT2TYPE
@@ -48,6 +50,93 @@ if TYPE_CHECKING:
 logger = logging.get_logger(__name__)
 
 
+def _iter_dynamic_jsonl(file_path: str, is_drop_cache: bool = False) -> Iterator[dict]:
+    """
+    Yield each JSONL line as a parsed dict, logging open and per-line latency.
+
+    Each time this generator is re-iterated, the file is reopened from the start.
+    If `is_drop_cache` is True, the file's entire page cache is dropped on open
+    and fadvise(DONTNEED) is called on the just-read range after each line.
+    """
+
+    logger.info_rank0(f"[STREAM] START file_path={file_path}, is_drop_cache={is_drop_cache}")
+
+    t_start = time.perf_counter()
+
+    with open(file_path, "rb") as f:
+
+        line_no = 0
+        last_pos = 0
+        cost_io_total = 0.0
+        cost_fadv_total = 0.0
+
+        fd = f.fileno()
+
+        if is_drop_cache:
+            t_fadv_start = time.perf_counter()
+
+            os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
+
+            t_fadv_end = time.perf_counter()
+            cost_fadv = t_fadv_end - t_fadv_start
+            cost_fadv_total += cost_fadv
+
+            logger.info_rank0(f"[STREAM] drop_cache full file cost={cost_fadv * 1000:.2f}ms")
+
+        while True:
+
+            t_io_start = time.perf_counter()
+
+            raw_line = f.readline()
+
+            t_io_end = time.perf_counter()
+            cost_io = t_io_end - t_io_start
+            cost_io_total += cost_io
+
+            if not raw_line:
+                break # while True
+
+            if line_no % 20 == 0:
+                t_now = time.perf_counter()
+                passed_from_start = t_now - t_start
+                logger.info_rank0(
+                    f"[STREAM] line_no={line_no}"
+                    f" passed_from_start={passed_from_start * 1000:.2f}ms "
+                    f" cost_io_total={cost_io_total * 1000:.2f}ms "
+                    f" cost_fadv_total={cost_fadv_total * 1000:.2f}ms"
+                )
+
+            line = raw_line.decode("utf-8").strip()
+
+            line_no += 1
+            if not line:
+                continue
+
+            yield json.loads(line)
+
+            if is_drop_cache:
+                
+                cur_pos = f.tell()
+                last_pos = cur_pos
+
+                t_fadv_start = time.perf_counter()
+                #os.posix_fadvise(fd, last_pos, cur_pos - last_pos, os.POSIX_FADV_DONTNEED)
+                # temp test
+                os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
+                t_fadv_end = time.perf_counter()
+                cost_fadv = t_fadv_end - t_fadv_start
+                cost_fadv_total += cost_fadv
+
+        t_now = time.perf_counter()
+        passed_from_start = t_now - t_start
+        logger.info_rank0(
+            f"[STREAM] END"
+            f" passed_from_start={passed_from_start * 1000:.2f}ms "
+            f" cost_io_total={cost_io_total * 1000:.2f}ms "
+            f" cost_fadv_total={cost_fadv_total * 1000:.2f}ms"
+        )
+
+
 def _load_single_dataset(
     dataset_attr: "DatasetAttr",
     model_args: "ModelArguments",
@@ -67,7 +156,7 @@ def _load_single_dataset(
         data_name = dataset_attr.subset
         data_dir = dataset_attr.folder
 
-    elif dataset_attr.load_from == "cloud_file":
+    elif dataset_attr.load_from in ["cloud_file", "dynamic_file"]:
         data_path = dataset_attr.dataset_name
 
     elif dataset_attr.load_from == "file":
@@ -127,6 +216,20 @@ def _load_single_dataset(
         )
     elif dataset_attr.load_from == "cloud_file":
         dataset = Dataset.from_list(read_cloud_json(data_path), split=dataset_attr.split)
+    elif dataset_attr.load_from == "dynamic_file":
+        if not data_args.streaming:
+            raise ValueError("`dynamic_file` requires `streaming: true`.")
+
+        filepath = dataset_attr.dataset_name
+        if not os.path.isabs(filepath):
+            filepath = os.path.join(data_args.dataset_dir, filepath)
+        if not os.path.isfile(filepath):
+            raise ValueError(f"File {filepath} not found.")
+
+        dataset = IterableDataset.from_generator(
+            _iter_dynamic_jsonl,
+            gen_kwargs={"file_path": filepath, "is_drop_cache": data_args.drop_cache},
+        )
     else:
         dataset = load_dataset(
             path=data_path,
