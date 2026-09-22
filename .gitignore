@@ -186,3 +186,7 @@ predictions_score.json
 my_outputs/
 my_saves/
 my_plans/
+data/my_datas/
+data/alpaca_en_52k_records.json
+data/alpaca_zh_51k_records.json
+data/streaming_*.jsonl
