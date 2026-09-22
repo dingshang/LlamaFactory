@@ -2,11 +2,29 @@
   "identity": {
     "file_name": "identity.json"
   },
+  "streaming_identity": {
+    "dynamic_file_name": "streaming_identity.jsonl"
+  },
   "alpaca_en_demo": {
     "file_name": "alpaca_en_demo.json"
   },
   "alpaca_zh_demo": {
     "file_name": "alpaca_zh_demo.json"
+  },
+  "streaming_alpaca_zh_demo": {
+    "dynamic_file_name": "streaming_alpaca_zh_demo.jsonl"
+  },
+  "streaming_alpaca_zh_1gb": {
+    "dynamic_file_name": "streaming_alpaca_zh_1gb.jsonl"
+  },
+  "streaming_alpaca_zh_demo_512mb": {
+    "dynamic_file_name": "streaming_alpaca_zh_demo_512mb.jsonl"
+  },
+  "alpaca_en_52k_records": {
+    "file_name": "alpaca_en_52k_records.json"
+  },
+  "alpaca_zh_51k_records": {
+    "file_name": "alpaca_zh_51k_records.json"
   },
   "glaive_toolcall_en_demo": {
     "file_name": "glaive_toolcall_en_demo.json",
@@ -26,6 +44,34 @@
   },
   "mllm_demo": {
     "file_name": "mllm_demo.json",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "messages",
+      "images": "images"
+    },
+    "tags": {
+      "role_tag": "role",
+      "content_tag": "content",
+      "user_tag": "user",
+      "assistant_tag": "assistant"
+    }
+  },
+  "streaming_mllm_demo": {
+    "dynamic_file_name": "streaming_mllm_demo.jsonl",
+    "formatting": "sharegpt",
+    "columns": {
+      "messages": "messages",
+      "images": "images"
+    },
+    "tags": {
+      "role_tag": "role",
+      "content_tag": "content",
+      "user_tag": "user",
+      "assistant_tag": "assistant"
+    }
+  },
+  "4klsdb_subset": {
+    "file_name": "my_datas/4klsdb_subset.json",
     "formatting": "sharegpt",
     "columns": {
       "messages": "messages",
